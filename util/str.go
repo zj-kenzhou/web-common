@@ -6,19 +6,13 @@ import (
 	"unicode"
 )
 
-const sqlReg = "\\b(and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or)\\b|(\\*|;|\\+|'|%|--)"
-const normalStrReg = "^[a-zA-Z0-9_-]+$"
-const intReg = "^[0-9]+$"
+var sqlReg = regexp.MustCompile("\\b(and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or)\\b|(\\*|;|\\+|'|%|--)")
+var normalStrReg = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
+var intReg = regexp.MustCompile("^[0-9]+$")
 
 func IsNormalStr(str string) bool {
-	isNormalStr, err := regexp.MatchString(normalStrReg, str)
-	if err != nil {
-		panic(err)
-	}
-	isSql, err := regexp.MatchString(sqlReg, strings.ToLower(str))
-	if err != nil {
-		panic(err)
-	}
+	isNormalStr := normalStrReg.MatchString(str)
+	isSql := sqlReg.MatchString(strings.ToLower(str))
 	return isNormalStr && !isSql
 }
 
@@ -39,9 +33,6 @@ func CameCaseToUnderscore(s string) string {
 }
 
 func IsInt(str string) bool {
-	isInt, err := regexp.MatchString(intReg, str)
-	if err != nil {
-		panic(err)
-	}
+	isInt := intReg.MatchString(str)
 	return isInt
 }

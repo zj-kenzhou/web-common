@@ -2,15 +2,17 @@ package util
 
 import (
 	"encoding/json"
-	"github.com/zj-kenzhou/web-common/condition"
+	"testing"
+
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"testing"
+
+	"github.com/zj-kenzhou/web-common/condition"
 )
 
 // 测试条件生成
 func TestQuerySql(t *testing.T) {
-	db, _ := gorm.Open(mysql.Open(`root:root@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local`), &gorm.Config{})
+	db, _ := gorm.Open(mysql.Open(`root:root@tcp(127.0.0.1:3306)/qylcp-backend?charset=utf8mb4&parseTime=True&loc=Local`), &gorm.Config{})
 	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		tx = tx.Table("SYS_USER")
 		queryParam := `[
