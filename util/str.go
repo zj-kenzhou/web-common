@@ -7,8 +7,8 @@ import (
 )
 
 var sqlReg = regexp.MustCompile("\\b(and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or)\\b|(\\*|;|\\+|'|%|--)")
-var normalStrReg = regexp.MustCompile("^[a-zA-Z0-9_-]$")
-var intReg = regexp.MustCompile("^[0-9]$")
+var normalStrReg = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
+var intReg = regexp.MustCompile("^[0-9]+$")
 
 func IsNormalStr(str string) bool {
 	isNormalStr := normalStrReg.MatchString(str)
