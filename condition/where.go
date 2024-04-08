@@ -11,5 +11,6 @@ type WhereItem struct {
 	Condition string      `json:"condition"`
 	Value     any         `json:"value"`
 	Query     *ChildQuery `json:"query"`
-	Child     []WhereItem `json:"child"`
+	Combo     []WhereItem `json:"combo"`
+	NextOr    bool        `json:"nextOr"`
 }

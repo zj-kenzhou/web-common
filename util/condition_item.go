@@ -2,16 +2,17 @@ package util
 
 import (
 	"fmt"
-	"github.com/spf13/cast"
-	"github.com/zj-kenzhou/web-common/condition"
-	"gorm.io/gorm"
 	"log"
-	"strings"
+
+	"github.com/spf13/cast"
+	"gorm.io/gorm"
+
+	"github.com/zj-kenzhou/web-common/condition"
 )
 
-type conditionFunc func(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error)
+type conditionFunc func(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error
 
-var _conditionFuncList []conditionFunc
+var _conditionFuncMap = make(map[string]conditionFunc)
 
 func oneStrToInt(arg any) any {
 	resStr, isStr := arg.(string)
@@ -53,267 +54,191 @@ func validAndSetCondition(conditionName string, field string, db *gorm.DB, and b
 	}
 }
 
-func notEq(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "notEq" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" <> ?", whereItem.Value)
-		return true, nil
-	}
-	return false, nil
+func notEq(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" <> ?", whereItem.Value)
+	return nil
 }
 
-func eq(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "eq" {
-		strValue, isStr := whereItem.Value.(string)
-		if isStr && strValue == "" {
-			return true, nil
-		}
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" = ?", whereItem.Value)
-		return true, nil
+func eq(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	strValue, isStr := whereItem.Value.(string)
+	if isStr && strValue == "" {
+		return nil
 	}
-	return false, nil
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" = ?", whereItem.Value)
+	return nil
 }
 
-func eqWithEmpty(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "eqWithEmpty" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" = ?", whereItem.Value)
-		return true, nil
-	}
-	return false, nil
+func eqWithEmpty(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" = ?", whereItem.Value)
+	return nil
 }
 
-func blurry(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "blurry" {
-		valueStr, ok := whereItem.Value.(string)
-		if ok && valueStr != "" {
-			if len(whereItem.FieldList) > 0 {
-				andDb := newDb(db)
-				for index := range whereItem.FieldList {
-					field := whereItem.FieldList[index]
-					validAndSetCondition(whereItem.Condition, field, andDb, false, field+" like ?", "%"+valueStr+"%")
-				}
-				if isAnd {
-					db = db.Where(andDb)
-				} else {
-					db = db.Or(andDb)
-				}
-				return true, nil
+func blurry(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	valueStr, ok := whereItem.Value.(string)
+	if ok && valueStr != "" {
+		if len(whereItem.FieldList) > 0 {
+			andDb := newDb(db)
+			for index := range whereItem.FieldList {
+				field := whereItem.FieldList[index]
+				validAndSetCondition(whereItem.Condition, field, andDb, false, field+" like ?", "%"+valueStr+"%")
 			}
+			if isAnd {
+				db = db.Where(andDb)
+			} else {
+				db = db.Or(andDb)
+			}
+			return nil
 		}
 	}
-	return false, nil
+	return nil
 }
 
-func gt(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == ">" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" > ?", whereItem.Value)
-		return true, nil
+func gt(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" > ?", whereItem.Value)
+	return nil
+}
+
+func gte(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" >= ?", whereItem.Value)
+	return nil
+}
+
+func lt(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" < ?", whereItem.Value)
+	return nil
+}
+
+func lte(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" =< ?", whereItem.Value)
+	return nil
+}
+
+func between(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	valueList, ok := whereItem.Value.([]any)
+	if ok && len(valueList) > 1 {
+		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" BETWEEN ? AND ?", valueList[0], valueList[1])
+	} else {
+		log.Println(fmt.Sprintf("属性:%s::的值不合规范::%v", whereItem.Field, whereItem.Value))
 	}
-	return false, nil
+	return nil
 }
 
-func gte(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == ">=" || whereItem.Condition == "=>" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" >= ?", whereItem.Value)
-		return true, nil
+func notBetween(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	valueList, ok := whereItem.Value.([]any)
+	if ok && len(valueList) > 1 {
+		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" NOT BETWEEN ? AND ?", valueList[0], valueList[1])
+	} else {
+		log.Println(fmt.Sprintf("属性:%s::的值不合规范::%v", whereItem.Field, whereItem.Value))
 	}
-	return false, nil
+	return nil
 }
 
-func lt(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "<" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" < ?", whereItem.Value)
-		return true, nil
+func like(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" like ?", "%"+cast.ToString(whereItem.Value)+"%")
+	return nil
+}
+
+func notLike(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" not like ?", "%"+cast.ToString(whereItem.Value)+"%")
+	return nil
+}
+
+func leftLike(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" like ?", cast.ToString(whereItem.Value)+"%")
+	return nil
+}
+
+func rightLike(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" like ?", "%"+cast.ToString(whereItem.Value))
+	return nil
+}
+
+func isNull(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IS NULL")
+	return nil
+}
+
+func isNotNull(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IS NOT NULL")
+	return nil
+}
+
+func in(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	valueList, ok := whereItem.Value.([]any)
+	if ok && len(valueList) > 0 {
+		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IN ?", valueList)
+		return nil
 	}
-	return false, nil
-}
-
-func lte(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "=<" || whereItem.Condition == "<=" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" =< ?", whereItem.Value)
-		return true, nil
+	if whereItem.Query != nil {
+		childDb, err := buildChildSql(db, *whereItem.Query)
+		if err != nil {
+			return err
+		}
+		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IN (?)", childDb)
+	} else {
+		log.Println(fmt.Sprintf("condition:%s::query and value is nil", whereItem.Condition))
 	}
-	return false, nil
+	return nil
 }
 
-func between(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "between" {
-		valueList, ok := whereItem.Value.([]any)
-		if ok && len(valueList) > 1 {
-			validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" BETWEEN ? AND ?", valueList[0], valueList[1])
+func notIn(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	valueList, ok := whereItem.Value.([]any)
+	if ok && len(valueList) > 0 {
+		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" NOT IN ?", valueList)
+		return nil
+	}
+	if whereItem.Query != nil {
+		childDb, err := buildChildSql(db, *whereItem.Query)
+		if err != nil {
+			return err
+		}
+		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" NOT IN (?)", childDb)
+	} else {
+		log.Println(fmt.Sprintf("condition:%s::query and value is nil", whereItem.Condition))
+	}
+	return nil
+}
+
+func combo(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
+	if len(whereItem.Combo) > 0 {
+		childDb := newDb(db)
+		err := SetWhere(childDb, whereItem.Combo)
+		if err != nil {
+			return err
+		}
+		if isAnd {
+			db = db.Where(childDb)
 		} else {
-			log.Println(fmt.Sprintf("属性:%s::的值不合规范::%v", whereItem.Field, whereItem.Value))
-		}
-		return true, nil
-	}
-	return false, nil
-}
-
-func notBetween(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "notBetween" {
-		valueList, ok := whereItem.Value.([]any)
-		if ok && len(valueList) > 1 {
-			validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" NOT BETWEEN ? AND ?", valueList[0], valueList[1])
-		} else {
-			log.Println(fmt.Sprintf("属性:%s::的值不合规范::%v", whereItem.Field, whereItem.Value))
-		}
-		return true, nil
-	}
-	return false, nil
-}
-
-func like(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "like" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" like ?", "%"+cast.ToString(whereItem.Value)+"%")
-		return true, nil
-	}
-	return false, nil
-}
-
-func notLike(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "notLike" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" not like ?", "%"+cast.ToString(whereItem.Value)+"%")
-		return true, nil
-	}
-	return false, nil
-}
-
-func leftLike(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "leftLike" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" like ?", "%"+cast.ToString(whereItem.Value))
-		return true, nil
-	}
-	return false, nil
-}
-
-func rightLike(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "rightLike" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" like ?", cast.ToString(whereItem.Value)+"%")
-		return true, nil
-	}
-	return false, nil
-}
-
-func isNull(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "isNull" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IS NULL")
-		return true, nil
-	}
-	return false, nil
-}
-
-func isNotNull(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "isNotNull" {
-		validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IS NOT NULL")
-		return true, nil
-	}
-	return false, nil
-}
-
-func in(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "in" {
-		valueList, ok := whereItem.Value.([]any)
-		if ok && len(valueList) > 0 {
-			validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IN ?", valueList)
-			return true, nil
-		}
-		if whereItem.Query != nil {
-			childDb, err := buildChildSql(db, *whereItem.Query)
-			if err != nil {
-				return false, err
-			}
-			validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" IN (?)", childDb)
-		} else {
-			log.Println(fmt.Sprintf("condition:%s::query and value is nil", whereItem.Condition))
-		}
-		return true, nil
-	}
-	return false, nil
-}
-
-func notIn(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) (bool, error) {
-	if whereItem.Condition == "notIn" {
-		valueList, ok := whereItem.Value.([]any)
-		if ok && len(valueList) > 0 {
-			validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" NOT IN ?", valueList)
-			return true, nil
-		}
-		if whereItem.Query != nil {
-			childDb, err := buildChildSql(db, *whereItem.Query)
-			if err != nil {
-				return false, err
-			}
-			validAndSetCondition(whereItem.Condition, whereItem.Field, db, isAnd, whereItem.Field+" NOT IN (?)", childDb)
-		} else {
-			log.Println(fmt.Sprintf("condition:%s::query and value is nil", whereItem.Condition))
-		}
-		return true, nil
-	}
-	return false, nil
-}
-
-func or(db *gorm.DB, _ bool, whereItem condition.WhereItem) (bool, error) {
-	if strings.EqualFold(whereItem.Condition, "or") {
-		if len(whereItem.Child) > 0 {
-			if len(whereItem.Child) == 1 {
-				err := putCondition(db, false, whereItem.Child[0])
-				if err != nil {
-					return false, err
-				}
-				return true, nil
-			}
-			childDb := newDb(db)
-			err := SetWhere(childDb, whereItem.Child)
-			if err != nil {
-				return true, err
-			}
 			db = db.Or(childDb)
 		}
-		return true, nil
 	}
-	return false, nil
-}
-
-func and(db *gorm.DB, _ bool, whereItem condition.WhereItem) (bool, error) {
-	if strings.EqualFold(whereItem.Condition, "and") {
-		if len(whereItem.Child) > 0 {
-			if len(whereItem.Child) == 1 {
-				err := putCondition(db, true, whereItem.Child[0])
-				if err != nil {
-					return false, err
-				}
-				return true, nil
-			}
-			childDb := newDb(db)
-			err := SetWhere(childDb, whereItem.Child)
-			if err != nil {
-				return true, err
-			}
-			db = db.Where(childDb)
-		}
-		return true, nil
-	}
-	return false, nil
+	return nil
 }
 
 func init() {
-	_conditionFuncList = append(_conditionFuncList, notEq)
-	_conditionFuncList = append(_conditionFuncList, eq)
-	_conditionFuncList = append(_conditionFuncList, eqWithEmpty)
-	_conditionFuncList = append(_conditionFuncList, blurry)
-	_conditionFuncList = append(_conditionFuncList, gt)
-	_conditionFuncList = append(_conditionFuncList, gte)
-	_conditionFuncList = append(_conditionFuncList, lt)
-	_conditionFuncList = append(_conditionFuncList, lte)
-	_conditionFuncList = append(_conditionFuncList, between)
-	_conditionFuncList = append(_conditionFuncList, notBetween)
-	_conditionFuncList = append(_conditionFuncList, like)
-	_conditionFuncList = append(_conditionFuncList, notLike)
-	_conditionFuncList = append(_conditionFuncList, leftLike)
-	_conditionFuncList = append(_conditionFuncList, rightLike)
-	_conditionFuncList = append(_conditionFuncList, isNull)
-	_conditionFuncList = append(_conditionFuncList, isNotNull)
-	_conditionFuncList = append(_conditionFuncList, in)
-	_conditionFuncList = append(_conditionFuncList, notIn)
-	_conditionFuncList = append(_conditionFuncList, or)
-	_conditionFuncList = append(_conditionFuncList, and)
+	_conditionFuncMap["notEq"] = notEq
+	_conditionFuncMap["eq"] = eq
+	_conditionFuncMap["eqWithEmpty"] = eqWithEmpty
+	_conditionFuncMap["blurry"] = blurry
+	_conditionFuncMap["gt"] = gt
+	_conditionFuncMap[">"] = gt
+	_conditionFuncMap["gte"] = gte
+	_conditionFuncMap[">="] = gte
+	_conditionFuncMap["=>"] = gte
+	_conditionFuncMap["lt"] = lt
+	_conditionFuncMap["<"] = lt
+	_conditionFuncMap["lte"] = lte
+	_conditionFuncMap["<="] = lte
+	_conditionFuncMap["=<"] = lte
+	_conditionFuncMap["between"] = between
+	_conditionFuncMap["notBetween"] = notBetween
+	_conditionFuncMap["like"] = like
+	_conditionFuncMap["notLike"] = notLike
+	_conditionFuncMap["leftLike"] = leftLike
+	_conditionFuncMap["rightLike"] = rightLike
+	_conditionFuncMap["isNull"] = isNull
+	_conditionFuncMap["isNotNull"] = isNotNull
+	_conditionFuncMap["in"] = in
+	_conditionFuncMap["notIn"] = notIn
+	_conditionFuncMap["combo"] = combo
 }

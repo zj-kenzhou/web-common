@@ -2,8 +2,10 @@ package util
 
 import (
 	"errors"
-	"github.com/zj-kenzhou/web-common/condition"
+
 	"gorm.io/gorm"
+
+	"github.com/zj-kenzhou/web-common/condition"
 )
 
 func newDb(db *gorm.DB) *gorm.DB {
@@ -14,8 +16,13 @@ func SetWhere(db *gorm.DB, whereList []condition.WhereItem) error {
 	if len(whereList) == 0 {
 		return nil
 	}
-	for _, whereItem := range whereList {
-		err := putCondition(db, true, whereItem)
+	for index := range whereList {
+		isAnd := true
+		if index != 0 {
+			prevItem := whereList[index-1]
+			isAnd = !prevItem.NextOr
+		}
+		err := putCondition(db, isAnd, whereList[index])
 		if err != nil {
 			return err
 		}
@@ -24,13 +31,11 @@ func SetWhere(db *gorm.DB, whereList []condition.WhereItem) error {
 }
 
 func putCondition(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
-	for _, conditionFunc := range _conditionFuncList {
-		match, err := conditionFunc(db, isAnd, whereItem)
+	conditionFunc, ok := _conditionFuncMap[whereItem.Condition]
+	if ok {
+		err := conditionFunc(db, isAnd, whereItem)
 		if err != nil {
 			return err
-		}
-		if match {
-			return nil
 		}
 	}
 	return nil

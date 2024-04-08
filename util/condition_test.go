@@ -32,20 +32,16 @@ func TestQuerySql(t *testing.T) {
 		  { "condition": "isNull", "field": "code"},
           { "condition": "isNotNull", "field": "code"},
           { "condition": "in", "field": "name", "value": ["23","89"]},
-          { "condition": "notIn", "field": "name", "value": ["23","89"]},
-		  { "condition": "or", "field": "name", "child": [
+          { "condition": "notIn", "field": "name", "value": ["23","89"], "nextOr": true },
+		  { "condition": "combo", "field": "name", "combo": [
 			{"condition": "eq", "field": "name", "value": "qqq"}
 		  ]},
-          { "condition": "or", "field": "name", "child": [
-			{"condition": "eq", "field": "name", "value": "qqq"},
+          { "condition": "combo", "field": "name", "combo": [
+			{"condition": "eq", "field": "name", "value": "qqq", "nextOr": true },
 			{"condition": "eq", "field": "name", "value": "kkk"}
 		  ]},
-          { "condition": "and", "field": "name", "child": [
+          { "condition": "combo", "field": "name", "combo": [
 			{"condition": "eq", "field": "name", "value": "qqq"}
-		  ]},
-          { "condition": "and", "field": "name", "child": [
-			{"condition": "eq", "field": "name", "value": "qqq"},
-			{"condition": "eq", "field": "name", "value": "kkk"}
 		  ]}
 		]`
 		var whereList []condition.WhereItem
@@ -63,7 +59,7 @@ func TestQuerySql(t *testing.T) {
 }
 
 func TestQuerySql1(t *testing.T) {
-	db, _ := gorm.Open(mysql.Open(`root:root@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local`), &gorm.Config{})
+	db, _ := gorm.Open(mysql.Open(`root:root@tcp(127.0.0.1:3306)/qylcp-backend?charset=utf8mb4&parseTime=True&loc=Local`), &gorm.Config{})
 	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		tx = tx.Table("SYS_USER")
 		queryParam := `[
