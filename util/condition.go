@@ -33,6 +33,7 @@ func SetWhere(db *gorm.DB, whereList []condition.WhereItem) error {
 func putCondition(db *gorm.DB, isAnd bool, whereItem condition.WhereItem) error {
 	conditionFunc, ok := _conditionFuncMap[whereItem.Condition]
 	if ok {
+		whereItem.Field = CameCaseToUnderscore(whereItem.Field)
 		err := conditionFunc(db, isAnd, whereItem)
 		if err != nil {
 			return err
