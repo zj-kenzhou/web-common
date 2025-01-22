@@ -1,10 +1,14 @@
 package model
 
+import (
+	"github.com/spf13/cast"
+)
+
 type BaseDto struct {
-	CreatedAt JsonTime `json:"created_at"`
-	UpdatedAt JsonTime `json:"updated_at"`
-	CreateBy  int64    `json:"create_by"`
-	UpdateBy  int64    `json:"update_by"`
+	CreatedAt JsonTime `json:"createdAt"`
+	UpdatedAt JsonTime `json:"updatedAt"`
+	CreateBy  string   `json:"createBy"`
+	UpdateBy  string   `json:"updateBy"`
 }
 
 func FromModel(model BaseModel) BaseDto {
@@ -15,7 +19,7 @@ func FromModel(model BaseModel) BaseDto {
 	dto.UpdatedAt = JsonTime{
 		Time: model.UpdatedAt,
 	}
-	dto.CreateBy = model.CreateBy
-	dto.UpdateBy = model.UpdateBy
+	dto.CreateBy = cast.ToString(model.CreateBy)
+	dto.UpdateBy = cast.ToString(model.UpdateBy)
 	return dto
 }
