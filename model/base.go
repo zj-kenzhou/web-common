@@ -9,10 +9,10 @@ import (
 )
 
 type BaseModel struct {
-	CreatedAt time.Time `gorm:"comment:'创建时间'"`
-	UpdatedAt time.Time `gorm:"comment:'更新时间'"`
-	CreateBy  uint64    `gorm:"<-:create;comment:'创建人id'"`
-	UpdateBy  uint64    `gorm:"<-;comment:'更新人id'"`
+	CreatedAt time.Time `gorm:"comment:创建时间;"`
+	UpdatedAt time.Time `gorm:"comment:更新时间;"`
+	CreateBy  uint64    `gorm:"<-:create;comment:创建人id;"`
+	UpdateBy  uint64    `gorm:"<-;comment:更新人id;"`
 }
 
 func (m *BaseModel) BeforeCreate(tx *gorm.DB) error {
